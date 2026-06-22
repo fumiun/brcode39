@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <title>バーコードリーダー（CODE39）</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 12px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .camera-container {
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      min-height: 280px;
+    }
+
+    .scan-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-frame {
+      width: 260px;
+      height: 260px;
+      border: 3px solid #2563eb;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(37, 99, 235, 0.5);
+      position: relative;
+    }
+
+    .scan-frame::before {
+      content: "";
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border: 3px solid transparent;
+      border-top-color: #60a5fa;
+      border-bottom-color: #60a5fa;
+      border-radius: 12px;
+      animation: scanPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes scanPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .scan-text {
+      position: absolute;
+      bottom: -40px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .status {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .status.success {
+      background: rgba(34, 197, 94, 0.3);
+      border: 1px solid rgba(34, 197, 94, 0.6);
+    }
+
+    .status.error {
+      background: rgba(239, 68, 68, 0.3);
+      border: 1px solid rgba(239, 68, 68, 0.6);
+    }
+
+    .result-section {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 20px;
+      color: #1f2937;
+    }
+
+    .result-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    .result-box {
+      background: rgba(37, 99, 235, 0.15);
+      border: 2px solid rgba(37, 99, 235, 0.4);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .result-box:hover {
+      background: rgba(37, 99, 235, 0.25);
+      border-color: rgba(37, 99, 235, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    .result-box:active {
+      transform: translateY(0);
+    }
+
+    .result-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #2563eb;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .copy-indicator {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #fca5a5;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 24px;
+      padding: 16px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    @media (max-width: 360px) {
+      h1 { font-size: 1.3rem; }
+      .scan-frame { width: 220px; height: 220px; }
+      .btn { padding: 12px 16px; font-size: 0.9rem; }
+      .result-value { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>バーコードリーダー（CODE39）</h1>
+    </header>
+
+    <div class="camera-container">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="scan-text">バーコードをフレーム内に合わせてください</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="status">カメラを起動しています...</div>
+
+    <div class="result-section">
+      <div class="result-label">読み取り結果（CODE39）</div>
+      
+      <div class="result-box" id="resultBox" style="display: none;">
+        <div class="result-value" id="resultValue"></div>
+        <div class="copy-indicator">クリックでクリップボードにコピー</div>
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-primary" id="startBtn">カメラ開始</button>
+        <button class="btn btn-secondary" id="stopBtn">カメラ停止</button>
+      </div>
+
+      <button class="btn btn-secondary" id="retryBtn" style="width: 100%; margin-top: 12px;">
+        再読み込み
+      </button>
+
+      <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <footer>
+      © 2026 バーコードリーダー（CODE39）| Chrome/Edge 推奨
+    </footer>
+  </div>
+
+  <script>
+    // 要素取得
+    const video = document.getElementById('video');
+    const status = document.getElementById('status');
+    const resultBox = document.getElementById('resultBox');
+    const resultValue = document.getElementById('resultValue');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const errorMessage = document.getElementById('errorMessage');
+
+    let barcodeDetector = null;
+    let stream = null;
+    let scanInterval = null;
+    let lastResult = null;
+
+    // ブラウザ対応チェック
+    async function checkSupport() {
+      if (!( "BarcodeDetector" in window )) {
+        showError("エラー: このブラウザは Barcode Detection API をサポートしていません。\nChrome または Edge をご利用ください。");
+        return false;
+      }
+
+      try {
+        const supportedFormats = await BarcodeDetector.getSupportedFormats();
+        if (!supportedFormats.includes("code_39")) {
+          showError("エラー: このブラウザは CODE39 をサポートしていません。\nChrome 83 以降（Android/macOS）または Edge 82 以降をご利用ください。");
+          return false;
+        }
+        return true;
+      } catch (e) {
+        showError("エラー: バーコードフォーマット確認に失敗しました。");
+        return false;
+      }
+    }
+
+    // エラー表示
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorMessage.style.display = "block";
+      status.textContent = "エラーが発生しました";
+      status.className = "status error";
+    }
+
+    // 成功表示
+    function showSuccess(msg) {
+      status.textContent = msg;
+      status.className = "status success";
+    }
+
+    // 通常表示
+    function showNormal(msg) {
+      status.textContent = msg;
+      status.className = "status";
+    }
+
+    // 検出器初期化
+    async function initDetector() {
+      try {
+        barcodeDetector = new BarcodeDetector({
+          formats: ["code_39", "codabar", "code_128"]
+        });
+        return true;
+      } catch (e) {
+        showError("エラー: BarcodeDetector の初期化に失敗しました。");
+        return false;
+      }
+    }
+
+    // カメラ起動
+    async function startCamera() {
+      errorMessage.style.display = "none";
+
+      // サポートチェック
+      const supported = await checkSupport();
+      if (!supported) return false;
+
+      // 検出器初期化
+      if (!(await initDetector())) return false;
+
+      try {
+        // カメラ取得
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+
+        video.srcObject = stream;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        retryBtn.disabled = true;
+
+        showNormal("バーコードを読み取っています...");
+
+        // リアルタイム検出開始
+        scanInterval = setInterval(detectBarcode, 300);
+        return true;
+      } catch (e) {
+        if (e.name === "NotAllowedError") {
+          showError("エラー: カメラへのアクセスが許可されていません。\nブラウザの設定でカメラ許可をお願いします。");
+        } else if (e.name === "NotFoundError") {
+          showError("エラー: カメラが見つかりません。");
+        } else {
+          showError("エラー: カメラ起動に失敗しました。" + e.message);
+        }
+        startBtn.disabled = false;
+        return false;
+      }
+    }
+
+    // カメラ停止
+    function stopCamera() {
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+      }
+
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      retryBtn.disabled = true;
+      showNormal("カメラを停止しました");
+    }
+
+    // バーコード検出
+    async function detectBarcode() {
+      if (!barcodeDetector || !stream) return;
+
+      try {
+        const barcodes = await barcodeDetector.detect(video);
+
+        if (barcodes.length > 0) {
+          const barcode = barcodes[0];
+
+          // CODE39 かどうか確認
+          if (barcode.format === "code_39" || barcode.format === "codabar") {
+            // **rawData → rawValue に修正**
+            const result = barcode.rawValue;
+
+            // 結果がない場合はスキップ
+            if (!result) return;
+
+            // 結果が前回と同じならスキップ
+            if (result === lastResult) return;
+
+            lastResult = result;
+
+            // 結果表示
+            resultValue.textContent = result;
+            resultBox.style.display = "block";
+
+            showSuccess(`CODE39 読み取り完了: ${result}`);
+
+            // 検出を一時的に停止
+            clearInterval(scanInterval);
+            scanInterval = null;
+            retryBtn.disabled = false;
+          }
+        }
+      } catch (e) {
+        // 検出エラーは silent に処理
+      }
+    }
+
+    // クリップボードコピー
+    async function copyResult() {
+      const result = resultValue.textContent;
+      if (!result) {
+        showError("コピー対象の結果がありません。");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(result);
+        showSuccess("結果をコピーしました！");
+        setTimeout(() => {
+          status.textContent = "バーコードを読み取っています...";
+          status.className = "status";
+        }, 2000);
+      } catch (e) {
+        showError("コピーに失敗しました。手動でコピーしてください。");
+      }
+    }
+
+    // 再読み込み
+    function retryScan() {
+      if (!stream) return;
+
+      // 結果をクリア
+      resultBox.style.display = "none";
+      lastResult = null;
+
+      showNormal("再読み込みを開始します...");
+      retryBtn.disabled = true;
+
+      // 検出再開
+      scanInterval = setInterval(detectBarcode, 300);
+    }
+
+    // イベントリスナー
+    startBtn.addEventListener("click", startCamera);
+    stopBtn.addEventListener("click", stopCamera);
+    retryBtn.addEventListener("click", retryScan);
+    resultBox.addEventListener("click", copyResult);
+
+    // 初期化
+    stopBtn.disabled = true;
+    retryBtn.disabled = true;
+    showNormal("「カメラ開始」ボタンでバーコード読み取りを開始");
+  </script>
+</body>
+</html>
