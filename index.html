@@ -49,6 +49,7 @@
       height: 320px;
       margin-left: auto;
       margin-right: auto;
+      border: 3px solid #2563eb;
     }
 
     video {
@@ -56,75 +57,6 @@
       height: 100%;
       display: block;
       object-fit: cover;
-    }
-
-    .scan-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .scan-frame {
-      /* フレーム：縦 220px、幅は自動フィット（最大 90%） */
-      height: 220px;
-      max-width: 90%;
-      width: auto;
-      border: 3px solid #2563eb;
-      border-radius: 12px;
-      box-shadow: 0 0 30px rgba(37, 99, 235, 0.5);
-      position: relative;
-      transition: all 0.3s;
-    }
-
-    .scan-frame.success {
-      border-color: #ef4444;
-      box-shadow: 0 0 50px rgba(239, 68, 68, 0.8);
-      animation: flashRed 0.5s ease-in-out 3;
-    }
-
-    @keyframes flashRed {
-      0%, 100% {
-        border-color: #ef4444;
-        box-shadow: 0 0 50px rgba(239, 68, 68, 0.8);
-      }
-      50% {
-        border-color: #fff;
-        box-shadow: 0 0 80px rgba(239, 68, 68, 1);
-      }
-    }
-
-    .scan-frame::before {
-      content: "";
-      position: absolute;
-      top: -3px;
-      left: -3px;
-      right: -3px;
-      bottom: -3px;
-      border: 3px solid transparent;
-      border-top-color: #60a5fa;
-      border-bottom-color: #60a5fa;
-      border-radius: 12px;
-      animation: scanPulse 2s ease-in-out infinite;
-    }
-
-    @keyframes scanPulse {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-
-    .scan-text {
-      position: absolute;
-      bottom: -40px;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-size: 0.9rem;
-      color: #94a3b8;
     }
 
     .status {
@@ -262,7 +194,6 @@
     @media (max-width: 360px) {
       h1 { font-size: 1.3rem; }
       .camera-container { height: 280px; }
-      .scan-frame { height: 190px; }
       .btn { padding: 12px 16px; font-size: 0.9rem; }
       .result-value { font-size: 1rem; }
     }
@@ -276,11 +207,6 @@
 
     <div class="camera-container">
       <video id="video" autoplay playsinline muted></video>
-      <div class="scan-overlay">
-        <div class="scan-frame" id="scanFrame">
-          <div class="scan-text">バーコードをフレーム内に合わせてください</div>
-        </div>
-      </div>
     </div>
 
     <div class="status" id="status">カメラを起動しています...</div>
@@ -314,7 +240,7 @@
     // 要素取得
     const video = document.getElementById('video');
     const status = document.getElementById('status');
-    const scanFrame = document.getElementById('scanFrame');
+    const cameraContainer = document.querySelector('.camera-container');
     const resultBox = document.getElementById('resultBox');
     const resultValue = document.getElementById('resultValue');
     const startBtn = document.getElementById('startBtn');
@@ -436,8 +362,10 @@
         stream = null;
       }
 
-      // フレームを元に戻す
-      scanFrame.classList.remove('success');
+      // カメラ枠を元に戻す
+      cameraContainer.style.border = "3px solid #2563eb";
+      cameraContainer.style.boxShadow = "0 10px 40px rgba(0, 0, 0, 0.3)";
+      cameraContainer.style.animation = "";
 
       startBtn.disabled = false;
       stopBtn.disabled = true;
@@ -467,8 +395,10 @@
 
             lastResult = result;
 
-            // フレームを赤く点滅
-            scanFrame.classList.add('success');
+            // カメラ枠を赤く点滅
+            cameraContainer.style.border = "3px solid #ef4444";
+            cameraContainer.style.boxShadow = "0 0 50px rgba(239, 68, 68, 0.8)";
+            cameraContainer.style.animation = "flashRed 0.5s ease-in-out 3";
 
             // 結果表示
             resultValue.textContent = result;
@@ -513,7 +443,9 @@
 
       // 結果をクリア
       resultBox.style.display = "none";
-      scanFrame.classList.remove('success');
+      cameraContainer.style.border = "3px solid #2563eb";
+      cameraContainer.style.boxShadow = "0 10px 40px rgba(0, 0, 0, 0.3)";
+      cameraContainer.style.animation = "";
       lastResult = null;
 
       showNormal("再読み込みを開始します...");
@@ -522,6 +454,22 @@
       // 検出再開
       scanInterval = setInterval(detectBarcode, 300);
     }
+
+    // クラス定義（アニメーション用）
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes flashRed {
+        0%, 100% {
+          border-color: #ef4444;
+          box-shadow: 0 0 50px rgba(239, 68, 68, 0.8);
+        }
+        50% {
+          border-color: #fff;
+          box-shadow: 0 0 80px rgba(239, 68, 68, 1);
+        }
+      }
+    `;
+    document.head.appendChild(style);
 
     // イベントリスナー
     startBtn.addEventListener("click", startCamera);
